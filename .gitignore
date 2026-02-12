@@ -1,0 +1,90 @@
+############################################################
+# OS Files
+############################################################
+.DS_Store
+Thumbs.db
+
+############################################################
+# Backend - ASP.NET Core / .NET
+############################################################
+
+# Build results
+**/bin/
+**/obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# Logs
+*.log
+
+# Test results
+TestResults/
+
+# Publish output
+publish/
+*.publishproj
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Local settings
+appsettings.Development.json
+appsettings.Local.json
+
+############################################################
+# Frontend - React / Node
+############################################################
+
+# Dependencies
+frontend/node_modules/
+
+# Production build
+frontend/build/
+frontend/dist/
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+############################################################
+# IDEs / Editors
+############################################################
+
+# VS Code
+.vscode/
+
+# WebStorm
+frontend/.idea/
+
+############################################################
+# Coverage
+############################################################
+coverage/
+
+############################################################
+# Misc
+############################################################
+*.swp
+*.lock.json
