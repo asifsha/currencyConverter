@@ -20,7 +20,11 @@ using Polly.Timeout;
 
 
 var builder = WebApplication.CreateBuilder (args);
-builder.Host.UseSerilog ((_, lc) => lc.WriteTo.Console ());
+builder.Host.UseSerilog((ctx, lc) => lc
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
+);
 
 builder.Services.AddControllers ();
 builder.Services.AddEndpointsApiExplorer ();
@@ -107,6 +111,8 @@ builder.Services.AddAuthorization (options => {
         policy.RequireRole ("Converter", "Admin"));
 });
 
+builder.Services.AddHttpContextAccessor();
+
 // -----------------------
 // Memory Cache & Rate Limiting
 // -----------------------
@@ -143,25 +149,36 @@ builder.Services.AddRateLimiter (options => {
 // -----------------------
 // HttpClient for external API
 // -----------------------
-builder.Services.AddHttpClient("Frankfurter", c =>
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient<FrankfurterExchangeRateProvider>(c =>
 {
     c.BaseAddress = new Uri("https://api.frankfurter.app/");
 })
 .AddPolicyHandler(GetRetryPolicy())
 .AddPolicyHandler(GetCircuitBreakerPolicy());
 
+builder.Services.AddScoped<IExchangeRateProvider>(sp =>
+    sp.GetRequiredService<FrankfurterExchangeRateProvider>());
+
+builder.Services.AddScoped<CurrencyRateService>();
+
+
 
 // -----------------------
 // Dependency Injection
 // -----------------------
-builder.Services.AddScoped<IExchangeRateProvider, FrankfurterExchangeRateProvider> ();
+
 builder.Services.AddScoped<ExchangeRateProviderFactory> ();
-builder.Services.AddScoped<CurrencyRateService> ();
+
 
 // -----------------------
 // Build App
 // -----------------------
 var app = builder.Build ();
+
+app.UseMiddleware<ObservabilityMiddleware>();
 
 app.UseMiddleware<RequestLoggingMiddleware> ();
 app.UseMiddleware<ExceptionMiddleware> ();
@@ -206,6 +223,7 @@ if (app.Environment.IsDevelopment ()) {
                 $"/swagger/{description.GroupName}/swagger.json",
                 description.GroupName.ToUpperInvariant ());
         }
+        options.InjectJavascript("/swagger-autologin.js");
     });
 }
 
@@ -215,6 +233,7 @@ if (app.Environment.IsDevelopment ()) {
 app.UseAuthentication (); // ✅ JWT validation
 app.UseRateLimiter ();
 app.UseAuthorization ();
+
 
 app.MapControllers ();
 
