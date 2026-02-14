@@ -1,4 +1,7 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using CurrencyConverter.Api.Factories;
 using CurrencyConverter.Api.Middleware;
 using CurrencyConverter.Api.Providers;
@@ -9,55 +12,55 @@ using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using Polly.Extensions.Http;
+using Microsoft.OpenApi.Models;
 using Serilog;
-// using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder (args);
 builder.Host.UseSerilog ((_, lc) => lc.WriteTo.Console ());
 
 builder.Services.AddControllers ();
 builder.Services.AddEndpointsApiExplorer ();
+
+// -----------------------
+// Swagger with JWT support
+// -----------------------
 builder.Services.AddSwaggerGen (c => {
     c.SwaggerDoc ("v1", new OpenApiInfo {
         Title = "CurrencyConverter API",
             Version = "v1"
     });
-});
 
-builder.Services.AddApiVersioning (o =>
-
-    {
-        o.DefaultApiVersion = new ApiVersion (1, 0);
-        o.AssumeDefaultVersionWhenUnspecified = true;
-        o.ApiVersionReader = new UrlSegmentApiVersionReader ();
+    // JWT Bearer authentication for Swagger
+    c.AddSecurityDefinition ("Bearer", new OpenApiSecurityScheme {
+        Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.ApiKey,
+            Scheme = "Bearer",
+            Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'"
     });
 
-builder.Services.AddAuthentication (JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer (o => {
-        o.TokenValidationParameters = new TokenValidationParameters {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey (Encoding.UTF8.GetBytes ("DEV_SECRET_KEY"))
-        };
+    c.AddSecurityRequirement (new OpenApiSecurityRequirement {
+        {
+            new OpenApiSecurityScheme {
+                Reference = new OpenApiReference {
+                    Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                }
+            },
+            Array.Empty<string> ()
+        }
     });
-
-builder.Services.AddAuthorization ();
-builder.Services.AddMemoryCache ();
-
-builder.Services.AddHttpClient ("Frankfurter", c => {
-    c.BaseAddress = new Uri ("https://api.frankfurter.app/");
 });
 
-builder.Services.AddScoped<IExchangeRateProvider, FrankfurterExchangeRateProvider> ();
-builder.Services.AddScoped<ExchangeRateProviderFactory> ();
-builder.Services.AddScoped<CurrencyRateService> ();
-builder.Services.AddApiVersioning (options => {
-    options.DefaultApiVersion = new ApiVersion (1, 0);
-    options.AssumeDefaultVersionWhenUnspecified = true;
-    options.ReportApiVersions = true;
-    options.ApiVersionReader = new UrlSegmentApiVersionReader ();
+builder.Services.AddHealthChecks ();
+
+// -----------------------
+// API Versioning
+// -----------------------
+builder.Services.AddApiVersioning (o => {
+    o.DefaultApiVersion = new ApiVersion (1, 0);
+    o.AssumeDefaultVersionWhenUnspecified = true;
+    o.ApiVersionReader = new UrlSegmentApiVersionReader ();
 });
 
 builder.Services.AddVersionedApiExplorer (options => {
@@ -65,10 +68,126 @@ builder.Services.AddVersionedApiExplorer (options => {
     options.SubstituteApiVersionInUrl = true;
 });
 
-var app = builder.Build ();
-app.UseMiddleware<RequestLoggingMiddleware> ();
-app.UseMiddleware<ExceptionMiddleware>();
+// -----------------------
+// JWT Authentication
+// -----------------------
 
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"];
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
+    {
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+
+// -----------------------
+// Authorization policies (role-based)
+// -----------------------
+builder.Services.AddAuthorization (options => {
+    // Example policy for converter/admin endpoints
+    options.AddPolicy ("ConverterPolicy", policy =>
+        policy.RequireRole ("Converter", "Admin"));
+});
+
+// -----------------------
+// Memory Cache & Rate Limiting
+// -----------------------
+builder.Services.AddMemoryCache ();
+
+builder.Services.AddRateLimiter (options => {
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string> (httpContext => {
+        string partitionKey;
+        if (httpContext.User?.Identity?.IsAuthenticated == true) {
+            partitionKey = httpContext.User.FindFirst (ClaimTypes.NameIdentifier)?.Value ??
+                httpContext.User.Identity.Name ?? "anonymous";
+        } else {
+            partitionKey = httpContext.Connection.RemoteIpAddress?.ToString () ?? "anonymous";
+        }
+
+        return RateLimitPartition.GetTokenBucketLimiter (partitionKey, _ => new TokenBucketRateLimiterOptions {
+            TokenLimit = 60,
+                TokensPerPeriod = 60,
+                ReplenishmentPeriod = TimeSpan.FromMinutes (1),
+                AutoReplenishment = true,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+        });
+    });
+
+    options.OnRejected = async (context, token) => {
+        var response = context.HttpContext.Response;
+        response.StatusCode = StatusCodes.Status429TooManyRequests;
+        response.ContentType = "application/json";
+        await response.WriteAsync ("{\"error\":\"Too many requests. Please try again later.\"}", cancellationToken : token);
+    };
+});
+
+// -----------------------
+// HttpClient for external API
+// -----------------------
+builder.Services.AddHttpClient ("Frankfurter", c => {
+    c.BaseAddress = new Uri ("https://api.frankfurter.app/");
+});
+
+// -----------------------
+// Dependency Injection
+// -----------------------
+builder.Services.AddScoped<IExchangeRateProvider, FrankfurterExchangeRateProvider> ();
+builder.Services.AddScoped<ExchangeRateProviderFactory> ();
+builder.Services.AddScoped<CurrencyRateService> ();
+
+// -----------------------
+// Build App
+// -----------------------
+var app = builder.Build ();
+
+app.UseMiddleware<RequestLoggingMiddleware> ();
+app.UseMiddleware<ExceptionMiddleware> ();
+
+// -----------------------
+// Dev JWT token endpoint
+// -----------------------
+if (app.Environment.IsDevelopment ()) {
+    app.MapPost ("/dev/token", (TokenRequest req) => {
+        var claims = new List<Claim> {
+        new Claim (ClaimTypes.Name, req.Username ?? "dev"),
+        new Claim (ClaimTypes.NameIdentifier, req.Username ?? "dev")
+        };
+
+        if (req.Roles != null) {
+            foreach (var r in req.Roles)
+                claims.Add (new Claim (ClaimTypes.Role, r));
+        }
+
+        var key = new SymmetricSecurityKey (Encoding.UTF8.GetBytes (jwtKey));
+        var creds = new SigningCredentials (key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken (
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours (8),
+            signingCredentials: creds
+        );
+
+        return Results.Ok (new { token = new JwtSecurityTokenHandler ().WriteToken (token) });
+    }).AllowAnonymous ();
+}
+
+// -----------------------
+// Swagger UI
+// -----------------------
 var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider> ();
 
 if (app.Environment.IsDevelopment ()) {
@@ -82,7 +201,15 @@ if (app.Environment.IsDevelopment ()) {
     });
 }
 
-app.UseAuthentication ();
+// -----------------------
+// Middleware
+// -----------------------
+app.UseAuthentication (); // ✅ JWT validation
+app.UseRateLimiter ();
 app.UseAuthorization ();
+
 app.MapControllers ();
+
 app.Run ();
+
+record TokenRequest (string? Username, string[] ? Roles);
