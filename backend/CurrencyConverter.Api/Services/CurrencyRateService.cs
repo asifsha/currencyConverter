@@ -1,9 +1,20 @@
 using CurrencyConverter.Api.Factories;
 using CurrencyConverter.Api.Models;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace CurrencyConverter.Api.Services;
 
 public class CurrencyRateService {
+
+    private readonly IMemoryCache _cache;
+
+public CurrencyRateService(
+    ExchangeRateProviderFactory factory,
+    IMemoryCache cache)
+{
+    _factory = factory;
+    _cache = cache;
+}
     private static readonly string[] Blocked = { "TRY", "PLN", "THB", "MXN" };
     private readonly ExchangeRateProviderFactory _factory;
 
@@ -21,11 +32,20 @@ public class CurrencyRateService {
     }
     public CurrencyRateService (ExchangeRateProviderFactory factory) => _factory = factory;
 
-    public Task<LatestRatesDto> GetLatestRatesAsync (string baseCurrency) {
+    public async Task<LatestRatesDto> GetLatestRatesAsync(string baseCurrency)
+{
+    var cacheKey = $"latest_{baseCurrency}";
 
-        ValidateCurrency (baseCurrency, "Base", false);
-        return _factory.Create ().GetLatestAsync (baseCurrency.ToUpper ());
-    }
+    if (_cache.TryGetValue(cacheKey, out LatestRatesDto cachedResult))
+        return cachedResult;
+
+    var result = await _factory.Create().GetLatestAsync(baseCurrency);
+
+    _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+
+    return result;
+}
+
 
     public async Task<decimal> ConvertAsync (string from, string to, decimal amount) {
         ValidateCurrency (from, "Source");

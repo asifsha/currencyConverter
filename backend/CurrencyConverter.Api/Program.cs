@@ -11,9 +11,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using Polly;
+using Polly.Extensions.Http;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
+
 
 var builder = WebApplication.CreateBuilder (args);
 builder.Host.UseSerilog ((_, lc) => lc.WriteTo.Console ());
@@ -139,9 +143,13 @@ builder.Services.AddRateLimiter (options => {
 // -----------------------
 // HttpClient for external API
 // -----------------------
-builder.Services.AddHttpClient ("Frankfurter", c => {
-    c.BaseAddress = new Uri ("https://api.frankfurter.app/");
-});
+builder.Services.AddHttpClient("Frankfurter", c =>
+{
+    c.BaseAddress = new Uri("https://api.frankfurter.app/");
+})
+.AddPolicyHandler(GetRetryPolicy())
+.AddPolicyHandler(GetCircuitBreakerPolicy());
+
 
 // -----------------------
 // Dependency Injection
@@ -211,5 +219,27 @@ app.UseAuthorization ();
 app.MapControllers ();
 
 app.Run ();
+
+
+
+static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+{
+    return HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .WaitAndRetryAsync(
+            retryCount: 3,
+            retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
+        );
+}
+
+static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
+{
+    return HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .CircuitBreakerAsync(
+            handledEventsAllowedBeforeBreaking: 3,
+            durationOfBreak: TimeSpan.FromSeconds(30)
+        );
+}
 
 record TokenRequest (string? Username, string[] ? Roles);
