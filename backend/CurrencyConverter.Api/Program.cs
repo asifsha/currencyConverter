@@ -261,4 +261,5 @@ static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
         );
 }
 
+public partial class Program { }
 record TokenRequest (string? Username, string[] ? Roles);

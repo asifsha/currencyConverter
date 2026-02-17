@@ -16,7 +16,8 @@ public CurrencyRateService(
     _cache = cache;
 }
     private static readonly string[] Blocked = { "TRY", "PLN", "THB", "MXN" };
-    private readonly ExchangeRateProviderFactory _factory;
+    private readonly IExchangeRateProviderFactory _factory;
+
 
     private static void ValidateCurrency (string currency, string paramName, bool validateBlocked = true) {
         if (string.IsNullOrWhiteSpace (currency))
@@ -30,7 +31,7 @@ public CurrencyRateService(
         if (validateBlocked && Blocked.Contains (currency))
             throw new BadRequestException ($"{paramName} currency '{currency}' is not supported.");
     }
-    public CurrencyRateService (ExchangeRateProviderFactory factory) => _factory = factory;
+    public CurrencyRateService (IExchangeRateProviderFactory factory) => _factory = factory;
 
     public async Task<LatestRatesDto> GetLatestRatesAsync(string baseCurrency)
 {

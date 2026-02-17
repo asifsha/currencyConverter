@@ -3,7 +3,7 @@ using CurrencyConverter.Api.Providers;
 
 namespace CurrencyConverter.Api.Factories;
 
-public class ExchangeRateProviderFactory
+public class ExchangeRateProviderFactory : IExchangeRateProviderFactory
 {
     private readonly IServiceProvider _sp;
     public ExchangeRateProviderFactory(IServiceProvider sp) => _sp = sp;
