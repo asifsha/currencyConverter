@@ -80,6 +80,9 @@ builder.Services.AddVersionedApiExplorer (options => {
 // JWT Authentication
 // -----------------------
 
+var env = builder.Environment;
+
+Console.WriteLine($"Environment: {env.EnvironmentName}");
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"];
