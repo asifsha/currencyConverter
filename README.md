@@ -2,6 +2,8 @@
 
 This repository contains a full-stack currency converter: a .NET 8 Web API backend and a React + TypeScript frontend. It demonstrates exchange-rate integration, historical data endpoints, JWT-based authentication, and a compact React UI.
 
+The codebase and documentation were developed with AI assistance from ChatGPT, Gemini, and GitHub Copilot. I focused on architectural improvements, including implementing middleware for logging, error handling, and observability, as well as integrating Swagger for API documentation.
+
 ---
 
 ## Table of Contents
@@ -97,7 +99,7 @@ Key frontend files:
 
 ## Environment & Configuration
 
-- Backend: configuration (ports, external provider URLs) lives in `appsettings.json` inside the API project.
+- Backend: configuration lives in `appsettings.json` inside the API project.
 - Frontend: `src/api/client.ts` sets the `baseURL` to `http://localhost:12046/api/v1` — update if your API runs elsewhere.
 
 ## Testing
@@ -125,9 +127,7 @@ dotnet test
 
 - Add database-backed user management (EF Core)
 - Add caching (Redis) for latest rates
-- Implement rate limiting and API key protection
-- Expand test coverage (unit + integration)
-- CI/CD + container images for production deployment
+- Container images for production deployment
 - Improve frontend UX (charts, currency flags, better responsiveness)
 
 ## Usage Tips
@@ -137,11 +137,3 @@ dotnet test
 - Health check: `/api/v1/health` returns API status.
 
 ---
-
-If you want, I can:
-
-- Add a `README.md` inside the frontend folder with focused instructions.
-- Add `npm` test scripts to `frontend/currency-converter-ui/package.json`.
-- Run the test suite and report coverage results.
-
-Which of these should I do next?
