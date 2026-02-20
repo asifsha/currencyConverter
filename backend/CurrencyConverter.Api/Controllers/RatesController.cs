@@ -27,6 +27,6 @@ public class RatesController : ControllerBase {
     }
 
     [HttpGet ("historical")]
-    [Authorize(Policy = "HistoricalPolicy")]
+    [Authorize(Policy = "ConverterPolicy")]
     public async Task<IActionResult> Historical (string @base, DateTime start, DateTime end, int page = 1, int pageSize = 10) => Ok (await _service.GetHistoricalAsync (@base, start, end, page, pageSize));
 }

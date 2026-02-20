@@ -172,6 +172,21 @@ builder.Services.AddScoped<CurrencyRateService>();
 
 builder.Services.AddScoped<ExchangeRateProviderFactory> ();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins(
+                    "http://localhost:5173",  // Vite
+                    "http://localhost:3000"   // Optional React default
+                )
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
+
+
 
 // -----------------------
 // Build App
@@ -230,6 +245,7 @@ if (app.Environment.IsDevelopment ()) {
 // -----------------------
 // Middleware
 // -----------------------
+app.UseCors("AllowFrontend");
 app.UseAuthentication (); // ✅ JWT validation
 app.UseRateLimiter ();
 app.UseAuthorization ();
