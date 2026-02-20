@@ -117,7 +117,7 @@ If `npm run test` is not defined, run directly with Vitest:
 npx vitest
 ```
 
-Backend tests (if added) use xUnit and can be run via:
+Backend tests use xUnit and can be run via:
 
 ```bash
 dotnet test
