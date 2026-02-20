@@ -5,7 +5,7 @@ import { Loader } from "./Loader";
 import { Pagination } from "./Pagination";
 
 export const HistoricalRates = () => {
-  const [base, setBase] = useState("USD");
+  const [base] = useState("USD");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [page, setPage] = useState(1);

@@ -1,6 +1,6 @@
 // src/auth/AuthContext.test.tsx
 import React from "react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthProvider, useAuth } from "./AuthContext";
@@ -22,24 +22,6 @@ const TestComponent = () => {
 const renderWithAuth = (component: React.ReactNode) => {
     return render(<AuthProvider>{component}</AuthProvider>);
 };
-
-// Minimal ErrorBoundary for testing hooks outside provider
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }> {
-    public error: any = null;
-
-    static getDerivedStateFromError(error: any) {
-        return { hasError: true };
-    }
-
-    componentDidCatch(error: any) {
-        this.error = error;
-    }
-
-    render() {
-        if (this.error) return null; // avoid rendering the error object
-        return this.props.children;
-    }
-}
 
 describe("AuthContext", () => {
     beforeEach(() => {

@@ -3,7 +3,7 @@ import api from "../api/client";
 import NavBar from "../components/NavBar";
 
 const HistoricalRatesPage = () => {
-  const [base, setBase] = useState("USD");
+  const [base] = useState("USD");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [page, setPage] = useState(1);

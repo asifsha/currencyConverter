@@ -166,7 +166,6 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     const form = screen.getByRole('button', { name: 'Login' }).closest('form');
-    const submitSpy = vi.spyOn(Event.prototype, 'preventDefault');
 
     const submitButton = screen.getByRole('button', { name: 'Login' });
     await user.click(submitButton);

@@ -114,7 +114,7 @@ describe('LatestRates', () => {
 
     vi.mocked(apiClient.default.get).mockRejectedValueOnce(error);
 
-    const { rerender } = render(<LatestRates />);
+    render(<LatestRates />);
 
     await waitFor(() => {
       expect(screen.getByText('Initial error')).toBeInTheDocument();

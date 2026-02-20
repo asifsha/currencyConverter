@@ -7,7 +7,7 @@ import ProtectedRoute from "./ProtectedRoute";
 const TestProtectedComponent = () => <div>Protected Content</div>;
 const TestLoginComponent = () => <div>Login Page</div>;
 
-const renderWithRouter = (initialToken: string | null = null) =>
+const renderWithRouter = (initialToken: string | undefined = undefined) =>
     render(
         <AuthProvider initialToken={initialToken}>
             <MemoryRouter initialEntries={["/protected"]}>
@@ -40,7 +40,7 @@ describe("ProtectedRoute", () => {
     });
 
     it("redirects to login when token is missing", async () => {
-        renderWithRouter(null);
+        renderWithRouter(undefined);
 
         const el = await screen.findByText("Login Page");
         expect(el).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe("ProtectedRoute", () => {
 
         // Re-render with cleared token (simulate logout)
         cleanup(); // remove previous tree
-        renderWithRouter(null);
+        renderWithRouter(undefined);
 
         // Assert login page is visible
         const el = await screen.findByText("Login Page");
