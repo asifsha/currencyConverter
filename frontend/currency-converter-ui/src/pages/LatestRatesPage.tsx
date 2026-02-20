@@ -19,7 +19,19 @@ const LatestRatesPage = () => {
 
       setRates(response.data.rates);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to load rates");
+      const data = err.response?.data;
+
+      if (typeof data === "string") {
+        setError(data);
+      } else if (data?.error) {
+        setError(data.error);
+      } else if (data?.message) {
+        setError(data.message);
+      } else if (data?.title) {
+        setError(data.title);
+      } else {
+        setError("Failed to fetch latest rates");
+      }
     } finally {
       setLoading(false);
     }

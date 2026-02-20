@@ -26,7 +26,22 @@ const ConvertPage = () => {
 
       setResult(response.data.result);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Conversion failed");
+      console.error("Conversion error:", err.response?.data || err);
+      console.error("Conversion error:", err.response?.data || err);
+
+      const data = err.response?.data;
+
+      if (typeof data === "string") {
+        setError(data);
+      } else if (data?.error) {
+        setError(data.error);
+      } else if (data?.message) {
+        setError(data.message);
+      } else if (data?.title) {
+        setError(data.title);
+      } else {
+        setError("Conversion failed");
+      }
     } finally {
       setLoading(false);
     }
